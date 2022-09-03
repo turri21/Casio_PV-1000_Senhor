@@ -1,0 +1,6 @@
+set_global_assignment -name QIP_FILE rtl/T80/T80.qip
+set_global_assignment -name VERILOG_FILE rtl/cpu_z80.v
+set_global_assignment -name VERILOG_FILE rtl/dpram.v
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/CasioPV1000.v
+set_global_assignment -name SDC_FILE Casio_PV-1000.sdc
+set_global_assignment -name SYSTEMVERILOG_FILE Casio_PV-1000.sv
