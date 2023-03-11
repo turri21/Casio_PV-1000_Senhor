@@ -67,7 +67,9 @@ assign nWAIT = 1'b1;
 assign nNMI = 1'b1;
 assign cpu_ram_a_o = cpu_addr;
 assign cpu_ram_d_o = data_from_cpu;
-assign data_to_cpu = (cpu_addr[7:0] == 8'hFC && nMEM && ~nRD) ? port_status : (cpu_addr[7:0] == 8'hFD && nMEM && ~nRD) ? io_data : cpu_ram_d_i;
+assign data_to_cpu = (cpu_addr[7:0] == 8'hFC && nMEM && ~nRD) ? port_status :
+							(cpu_addr[7:3] == 5'h1F && nMEM && ~nRD) ? io_data :
+							cpu_ram_d_i;
 
 ///////////////////////////SOUND///////////////////////////
 
@@ -116,71 +118,69 @@ reg [7:0] io_data;
 reg [7:0] io_regs[8];
 reg [7:0] FD_data;
 reg       FD_buffer_flag;
-reg [1:0] rd_sampler,wr_sampler;
 reg [7:0] port_status;
 
-always @(posedge clk) begin
-	rd_sampler = {rd_sampler[0],nRD};
-	wr_sampler = {wr_sampler[0],nWR};
-end
 
 always @(posedge clk) begin
+	reg old_nRD, old_nWR;
+	old_nRD <= nRD;
+	old_nWR <= nWR;
    if(reset) begin
-		FD_data = 8'h00;
-		io_regs[5] = 8'h00;
-		sound_channel[0] = 8'hFF;
-		sound_channel[1] = 8'hFF;
-		sound_channel[2] = 8'hFF;
+		FD_data <= 8'h00;
+		io_regs[5] <= 8'h00;
+		sound_channel[0] <= 8'hFF;
+		sound_channel[1] <= 8'hFF;
+		sound_channel[2] <= 8'hFF;
 	end
 	Y_D <= Y;
-	if(Y_D==10'd210 && Y==10'd211) FD_buffer_flag <= 1'b1;
+	if(Y_D==10'd194 && Y==10'd195) FD_buffer_flag <= 1'b1;
 
 	//IO READS
-	if(cpu_ram_a_o[7:0] == 8'hF8 && ~nRD && nMEM) io_data = io_regs[0];
-	if(cpu_ram_a_o[7:0] == 8'hF9 && ~nRD && nMEM) io_data = io_regs[1];
-	if(cpu_ram_a_o[7:0] == 8'hFA && ~nRD && nMEM) io_data = io_regs[2];
-	if(cpu_ram_a_o[7:0] == 8'hFB && ~nRD && nMEM) io_data = io_regs[3];
+	if(cpu_ram_a_o[7:0] == 8'hF8 && ~nRD && nMEM) io_data <= io_regs[0];
+	else if(cpu_ram_a_o[7:0] == 8'hF9 && ~nRD && nMEM) io_data <= io_regs[1];
+	else if(cpu_ram_a_o[7:0] == 8'hFA && ~nRD && nMEM) io_data <= io_regs[2];
+	else if(cpu_ram_a_o[7:0] == 8'hFB && ~nRD && nMEM) io_data <= io_regs[3];
 
-	if(cpu_ram_a_o[7:0] == 8'hFC && ~nRD && nMEM && rd_sampler == 2'b10) begin
-		port_status[0] = FD_buffer_flag;
-		port_status[1] = |FD_data;
-		port_status[7:2] = 6'd0;
+	else if(cpu_ram_a_o[7:0] == 8'hFC && ~nRD && nMEM && old_nRD && ~nRD) begin
+		port_status[0] <= FD_buffer_flag;
+		port_status[1] <= |FD_data;
+		port_status[7:2] <= 6'd0;
 		FD_buffer_flag <= 1'b0;
 	end
 
-	if(cpu_ram_a_o[7:0] == 8'hFD && ~nRD && nMEM && rd_sampler == 2'b10) begin
-		io_data = 8'h00;
+	else if(cpu_ram_a_o[7:0] == 8'hFD && ~nRD && nMEM && old_nRD && ~nRD) begin
+		io_data[7:4] <= 4'h0;
 	   if(io_regs[5][0]) begin
-			io_data[3:0] = io_data[3:0] | {joy1[7],joy1[6],joy0[7],joy0[6]};
-			FD_data[0] = FD_data[0] & 1'b0;
+			io_data[3:0] <= {joy1[7],joy1[6],joy0[7],joy0[6]};
+			FD_data[0] <= 1'b0;
 		end
 		
-	   if(io_regs[5][1]) begin
-			io_data[3:0] = io_data[3:0] | {joy1[0],joy1[2],joy0[0],joy0[2]};
-			FD_data[1] = FD_data[1] & 1'b0;
+	   else if(io_regs[5][1]) begin
+			io_data[3:0] <= {joy1[0],joy1[2],joy0[0],joy0[2]};
+			FD_data[1] <= 1'b0;
 		end
 		
-	   if(io_regs[5][2]) begin
-			io_data[3:0] = io_data[3:0] | {joy1[3],joy1[1],joy0[3],joy0[1]};
-			FD_data[2] = FD_data[2] & 1'b0;
+	   else if(io_regs[5][2]) begin
+			io_data[3:0] <= {joy1[3],joy1[1],joy0[3],joy0[1]};
+			FD_data[2] <= 1'b0;
 		end
 		
-	   if(io_regs[5][3]) begin
-			io_data[3:0] = io_data[3:0] | {joy1[4],joy1[5],joy0[4],joy0[5]};
-			FD_data[3] = FD_data[3] & 1'b0;
+	   else if(io_regs[5][3]) begin
+			io_data[3:0] <= {joy1[4],joy1[5],joy0[4],joy0[5]};
+			FD_data[3] <= 1'b0;
 		end
 	end
-	if(cpu_ram_a_o[7:0] == 8'hFE && ~nRD && nMEM && rd_sampler == 2'b10) io_data = io_regs[6];
-	if(cpu_ram_a_o[7:0] == 8'hFF && ~nRD && nMEM && rd_sampler == 2'b10) io_data = io_regs[7];
+	else if(cpu_ram_a_o[7:0] == 8'hFE && ~nRD && nMEM && old_nRD && ~nRD) io_data <= io_regs[6];
+	else if(cpu_ram_a_o[7:0] == 8'hFF && ~nRD && nMEM && old_nRD && ~nRD) io_data <= io_regs[7];
 
 	//IO WRITES
-	if((cpu_ram_a_o[7:0] >= 8'hF8 && cpu_ram_a_o[7:0] <= 8'hFA) && nMEM && wr_sampler == 2'b10) sound_channel[cpu_ram_a_o[1:0]] = data_from_cpu;
-	if(cpu_ram_a_o[7:3] == 5'h1F && ~nWR && nMEM && wr_sampler == 2'b10) io_regs[cpu_ram_a_o[2:0]] = data_from_cpu;
-	if(cpu_ram_a_o[7:0] == 8'hFD && ~nWR && nMEM && wr_sampler == 2'b10) FD_data = 8'h0F;
-	if(cpu_ram_a_o[7:0] == 8'hFF && ~nWR && nMEM && wr_sampler == 2'b10) begin
-		force_pattern = data_from_cpu[4];
-		pcg_bank = data_from_cpu[5];
-		border_color = data_from_cpu[2:0];
+	if((cpu_ram_a_o[7:0] >= 8'hF8 && cpu_ram_a_o[7:0] <= 8'hFA) && nMEM && old_nWR && ~nWR) sound_channel[cpu_ram_a_o[1:0]] <= data_from_cpu;
+	if(cpu_ram_a_o[7:3] == 5'h1F && ~nWR && nMEM && old_nWR && ~nWR) io_regs[cpu_ram_a_o[2:0]] <= data_from_cpu;
+	if(cpu_ram_a_o[7:0] == 8'hFD && ~nWR && nMEM && old_nWR && ~nWR) FD_data <= 8'h0F;
+	if(cpu_ram_a_o[7:0] == 8'hFF && ~nWR && nMEM && old_nWR && ~nWR) begin
+		force_pattern <= data_from_cpu[4];
+		pcg_bank <= data_from_cpu[5];
+		border_color <= data_from_cpu[2:0];
 	end
 end
 
@@ -300,7 +300,7 @@ always @(posedge clk) begin
 	endcase
 end
 
-always @(posedge clk_vdp) begin
+always @(posedge clk) begin
 	if((Y == 195 || Y == 199 || Y == 203 || Y == 207 || Y == 211 ||
    	Y == 215 || Y == 219 || Y == 223 || Y == 227 || Y == 231 || 
 		Y == 235 || Y == 239 || Y == 243 || Y == 247 || Y == 251 || 
