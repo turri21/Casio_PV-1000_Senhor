@@ -1,3 +1,8 @@
+-=(Casio_PV-1000_Senhor notes)=-
+
+Tested: Working Video 720p, 1080p & Sound.
+
+___
 <p align="center">
     <img style="width: 450px;" src="assets/Casio-PV1000.png">
 </p>
